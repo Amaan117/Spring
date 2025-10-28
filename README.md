@@ -384,3 +384,92 @@ public class TicketDTO {
     private LocalDateTime closedDate;
     private byte[] attachment;
 }
+
+
+
+
+
+package com.example.productsupport.repository;
+
+import com.example.productsupport.dto.TicketDTO;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.simple.SimpleJdbcCall;
+import org.springframework.stereotype.Repository;
+
+import java.sql.Date;
+import java.util.List;
+import java.util.Map;
+
+@Repository
+public class TicketRepository {
+
+    private final JdbcTemplate jdbc;
+
+    public TicketRepository(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    /* ---------- Dropdown ---------- */
+    public List<Map<String, Object>> getDropdown(String type) {
+        SimpleJdbcCall call = new SimpleJdbcCall(jdbc)
+                .withFunctionName("get_dropdown_values")
+                .returningResultSet("result",
+                        BeanPropertyRowMapper.newInstance(Map.class));
+        return call.executeFunction(List.class,
+                new MapSqlParameterSource().addValue("type", type));
+    }
+
+    /* ---------- Insert ---------- */
+    public Long insertTicket(TicketDTO t) {
+        SimpleJdbcCall call = new SimpleJdbcCall(jdbc)
+                .withFunctionName("insert_ticket");
+        MapSqlParameterSource p = new MapSqlParameterSource()
+                .addValue("p_subject", t.getSubject())
+                .addValue("p_description", t.getDescription())
+                .addValue("p_priority", t.getPriority())
+                .addValue("p_category", t.getCategory())
+                .addValue("p_created_by", t.getCreatedBy())
+                .addValue("p_attachment", t.getAttachment());
+        return call.executeFunction(Long.class, p);
+    }
+
+    /* ---------- Update ---------- */
+    public void updateTicket(TicketDTO t) {
+        SimpleJdbcCall call = new SimpleJdbcCall(jdbc)
+                .withFunctionName("update_ticket");
+        MapSqlParameterSource p = new MapSqlParameterSource()
+                .addValue("p_id", t.getId())
+                .addValue("p_assigned_to", t.getAssignedTo())
+                .addValue("p_status", t.getStatus())
+                .addValue("p_resolved_date", t.getResolvedDate() != null ?
+                        java.sql.Timestamp.valueOf(t.getResolvedDate()) : null)
+                .addValue("p_closed_date", t.getClosedDate() != null ?
+                        java.sql.Timestamp.valueOf(t.getClosedDate()) : null);
+        call.execute(p);
+    }
+
+    /* ---------- Queries ---------- */
+    public List<TicketDTO> recent() {
+        return jdbc.query("SELECT * FROM get_recent_tickets()", 
+                BeanPropertyRowMapper.newInstance(TicketDTO.class));
+    }
+    public List<TicketDTO> myTickets(String user) {
+        return jdbc.query("SELECT * FROM get_user_tickets(?)",
+                BeanPropertyRowMapper.newInstance(TicketDTO.class), user);
+    }
+    public TicketDTO byId(Long id) {
+        return jdbc.query("SELECT * FROM get_ticket_by_id(?)",
+                BeanPropertyRowMapper.newInstance(TicketDTO.class), id)
+                .stream().findFirst().orElse(null);
+    }
+    public List<TicketDTO> filtered(String start, String end,
+                                   String status, String priority) {
+        return jdbc.query("SELECT * FROM get_filtered_tickets(?,?,?,?)",
+                BeanPropertyRowMapper.newInstance(TicketDTO.class),
+                start == null ? null : Date.valueOf(start),
+                end   == null ? null : Date.valueOf(end),
+                status, priority);
+    }
+}
