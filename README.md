@@ -473,3 +473,83 @@ public class TicketRepository {
                 status, priority);
     }
 }
+
+
+
+
+
+package com.example.productsupport.service;
+
+import com.example.productsupport.dto.TicketDTO;
+import com.example.productsupport.repository.TicketRepository;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class TicketService {
+
+    private final TicketRepository repo;
+    private final HttpSession session;
+
+    public TicketService(TicketRepository repo, HttpSession session) {
+        this.repo = repo;
+        this.session = session;
+    }
+
+    public String currentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : "anonymous";
+    }
+
+    public boolean isAdmin() {
+        return currentUser().contains("admin");   // simple demo rule
+    }
+
+    public List<Map<String, Object>> dropdown(String type) {
+        return repo.getDropdown(type);
+    }
+
+    /* ---------- CREATE ---------- */
+    public void create(TicketDTO t, MultipartFile file) throws IOException {
+        t.setCreatedBy(currentUser());
+        t.setCreatedDate(LocalDateTime.now());
+        t.setStatus("New");
+        if (file != null && !file.isEmpty()) t.setAttachment(file.getBytes());
+
+        Long id = repo.insertTicket(t);
+        t.setId(id);
+        session.setAttribute("alert", "Ticket #" + id + " created.");
+    }
+
+    /* ---------- UPDATE ---------- */
+    public void update(TicketDTO t) {
+        TicketDTO old = repo.byId(t.getId());
+        repo.updateTicket(t);
+
+        if (!old.getStatus().equals(t.getStatus())) {
+            String msg = switch (t.getStatus()) {
+                case "Assigned"     -> "Ticket #" + t.getId() + " assigned to " + t.getAssignedTo();
+                case "Resolved"     -> { t.setResolvedDate(LocalDateTime.now()); repo.updateTicket(t);
+                                          yield "Ticket #" + t.getId() + " resolved."; }
+                case "Closed"       -> { t.setClosedDate(LocalDateTime.now()); repo.updateTicket(t);
+                                          yield "Ticket #" + t.getId() + " closed."; }
+                default             -> null;
+            };
+            if (msg != null) session.setAttribute("alert", msg);
+        }
+    }
+
+    public List<TicketDTO> recent()          { return repo.recent(); }
+    public List<TicketDTO> myTickets()       { return repo.myTickets(currentUser()); }
+    public TicketDTO byId(Long id)           { return repo.byId(id); }
+    public List<TicketDTO> filtered(String s, String e,
+                                   String st, String p) { return repo.filtered(s,e,st,p); }
+}
