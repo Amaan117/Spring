@@ -1258,3 +1258,231 @@ ResultSet get_filtered_tickets(Connection conn,
     return ps.executeQuery();
 }
 $$;
+
+
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <title>Ticket Form</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+        .container { background: white; padding: 25px; border: 1px solid #ddd; border-radius: 5px; max-width: 600px; }
+        h2 { margin-top: 0; }
+        label { display: block; margin: 15px 0 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        textarea { height: 100px; }
+        .readonly { background: #f0f0f0; }
+        button { margin-top: 20px; background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .back-btn { background: #6c757d; margin-left: 10px; }
+        .back-btn:hover { background: #5a6268; }
+    </style>
+    <script src="/js/app.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const ticketId = urlParams.get('id');
+
+        async function loadTicket() {
+            if (!ticketId) {
+                alert("No ticket ID provided.");
+                window.location.href = "/home.html";
+                return;
+            }
+
+            const ticket = await get(`/api/ticket/${ticketId}`);
+            if (!ticket) {
+                alert("Ticket not found.");
+                window.location.href = "/home.html";
+                return;
+            }
+
+            document.getElementById('ticketId').textContent = ticket.id;
+            document.getElementById('subject').value = ticket.subject;
+            document.getElementById('description').value = ticket.description;
+            document.getElementById('assignedTo').value = ticket.assignedTo || '';
+            document.getElementById('status').value = ticket.status;
+
+            // Load engineers
+            const engineers = await get('/api/dropdown/engineer');
+            const select = document.getElementById('assignedTo');
+            engineers.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.value; opt.textContent = e.label;
+                if (e.value === ticket.assignedTo) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        async function saveTicket() {
+            const formData = new FormData();
+            formData.append('id', ticketId);
+            formData.append('assignedTo', document.getElementById('assignedTo').value);
+            formData.append('status', document.getElementById('status').value);
+
+            await post('/api/update', formData);
+            window.location.href = "/home.html";
+        }
+
+        window.onload = loadTicket;
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2>Ticket #<span id="ticketId"></span></h2>
+
+        <label>Subject</label>
+        <input id="subject" class="readonly" readonly/>
+
+        <label>Description</label>
+        <textarea id="description" class="readonly" readonly></textarea>
+
+        <label>Assign Engineer</label>
+        <select id="assignedTo"></select>
+
+        <label>Status</label>
+        <select id="status">
+            <option value="Assigned">Assigned</option>
+            <option value="In-Progress">In-Progress</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
+        </select>
+
+        <button onclick="saveTicket()">Update Ticket</button>
+        <a href="/home.html" class="back-btn" style="padding: 10px 20px; display: inline-block; color: white; text-decoration: none;">Cancel</a>
+    </div>
+</body>
+</html>
+
+
+
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <title>Reports</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav a { padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+        .nav a.active { background: #0056b3; }
+        .filter-form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        label { font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { grid-column: span 2; background: #007bff; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #007bff; color: white; }
+        .export-btn { display: inline-block; margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; }
+        .export-btn:hover { background: #218838; }
+    </style>
+    <script src="/js/app.js"></script>
+    <script>
+        async function loadDropdowns() {
+            await loadDropdown('status', 'status');
+            await loadDropdown('priority', 'priority');
+        }
+
+        async function applyFilter() {
+            const params = new URLSearchParams({
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                status: document.getElementById('status').value,
+                priority: document.getElementById('priority').value
+            });
+
+            const tickets = await get(`/api/filtered?${params}`);
+            const tbody = document.querySelector('#results tbody');
+            tbody.innerHTML = '';
+            tickets.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${t.id}</td>
+                    <td>${t.subject}</td>
+                    <td>${t.status}</td>
+                    <td>${t.priority}</td>
+                    <td>${t.createdBy}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Show export button only if results exist
+            const exportBtn = document.getElementById('exportBtn');
+            exportBtn.style.display = tickets.length > 0 ? 'inline-block' : 'none';
+            exportBtn.href = `/api/export?${params}`;
+        }
+
+        window.onload = async () => {
+            await loadDropdowns();
+
+            // Pre-fill status dropdown
+            const statusSelect = document.getElementById('status');
+            const statuses = ['New', 'Assigned', 'In-Progress', 'Resolved', 'Closed'];
+            statusSelect.innerHTML = '<option value="">All</option>';
+            statuses.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s; opt.textContent = s;
+                statusSelect.appendChild(opt);
+            });
+
+            // Load initial data (all tickets)
+            applyFilter();
+        };
+    </script>
+</head>
+<body>
+    <div class="nav">
+        <a href="/home.html">Home</a>
+        <a href="/menu.html">Menu</a>
+        <a href="/reports.html" class="active">Reports</a>
+        <a href="/logout" style="margin-left: auto;">Logout</a>
+    </div>
+
+    <h2>Filter Tickets</h2>
+    <form class="filter-form" onsubmit="event.preventDefault(); applyFilter();">
+        <div>
+            <label>Start Date</label>
+            <input type="date" id="startDate"/>
+        </div>
+        <div>
+            <label>End Date</label>
+            <input type="date" id="endDate"/>
+        </div>
+        <div>
+            <label>Status</label>
+            <select id="status"></select>
+        </div>
+        <div>
+            <label>Priority</label>
+            <select id="priority"></select>
+        </div>
+        <button type="submit">Apply Filter</button>
+    </form>
+
+    <h3 id="resultsHeader" style="display:none;">Results</h3>
+    <table id="results" style="display:none;">
+        <thead>
+            <tr><th>ID</th><th>Subject</th><th>Status</th><th>Priority</th><th>Created By</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <a id="exportBtn" class="export-btn" style="display:none;" download>Export to Excel</a>
+
+    <script>
+        // Show table only when data is loaded
+        const originalApplyFilter = applyFilter;
+        applyFilter = async () => {
+            document.getElementById('results').style.display = 'table';
+            document.getElementById('resultsHeader').style.display = 'block';
+            await originalApplyFilter();
+        };
+    </script>
+</body>
+</html>
