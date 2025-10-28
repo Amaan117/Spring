@@ -553,3 +553,154 @@ public class TicketService {
     public List<TicketDTO> filtered(String s, String e,
                                    String st, String p) { return repo.filtered(s,e,st,p); }
 }
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <title>Home</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f9f9f9; }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav a { padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+        .nav a.active { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #007bff; color: white; }
+        .btn { padding: 5px 10px; background: #28a745; color: white; border-radius: 3px; text-decoration: none; }
+    </style>
+    <script src="/js/app.js"></script>
+    <script>
+        async function loadRecent() {
+            const tickets = await get('/api/recent');
+            const isAdmin = await get('/api/isAdmin');
+            const tbody = document.querySelector('#recent tbody');
+            tbody.innerHTML = '';
+            tickets.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${t.id}</td>
+                    <td>${t.subject}</td>
+                    <td>${t.status}</td>
+                    <td>${t.createdBy}</td>
+                    ${isAdmin ? `<td><a href="/ticketForm.html?id=${t.id}" class="btn">Edit</a></td>` : ''}
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        window.onload = loadRecent;
+    </script>
+</head>
+<body data-alert="">
+    <div class="nav">
+        <a href="/home.html" class="active">Home</a>
+        <a href="/menu.html">Menu</a>
+        <a href="/reports.html">Reports</a>
+        <a href="/logout" style="margin-left: auto;">Logout</a>
+    </div>
+    <h2>Recent Tickets</h2>
+    <table id="recent">
+        <thead><tr><th>ID</th><th>Subject</th><th>Status</th><th>Created By</th><th>Action</th></tr></thead>
+        <tbody></tbody>
+    </table>
+</body>
+</html>
+
+
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <title>Menu</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f9f9f9; }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav a { padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+        .nav a.active { background: #0056b3; }
+        form { background: white; padding: 20px; border: 1px solid #ddd; max-width: 500px; }
+        label { display: block; margin: 10px 0 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { margin-top: 15px; background: #007bff; color: white; padding: 10px; border: none; border-radius: 4px; }
+        table { width: 100%; margin-top: 30px; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background: #007bff; color: white; }
+    </style>
+    <script src="/js/app.js"></script>
+    <script>
+        async function loadMyTickets() {
+            const tickets = await get('/api/myTickets');
+            const tbody = document.querySelector('#myTickets tbody');
+            tbody.innerHTML = '';
+            tickets.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${t.id}</td><td>${t.subject}</td><td>${t.status}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.onload = async () => {
+            await loadDropdown('priority', 'priority');
+            await loadDropdown('category', 'category');
+            loadMyTickets();
+        };
+    </script>
+</head>
+<body>
+    <div class="nav">
+        <a href="/home.html">Home</a>
+        <a href="/menu.html" class="active">Menu</a>
+        <a href="/reports.html">Reports</a>
+        <a href="/logout" style="margin-left: auto;">Logout</a>
+    </div>
+
+    <h2>Submit Request</h2>
+    <form id="ticketForm" enctype="multipart/form-data">
+        <label>Subject</label>
+        <input name="subject" required/>
+
+        <label>Description</label>
+        <textarea name="description"></textarea>
+
+        <label>Priority</label>
+        <select id="priority" name="priority" required></select>
+
+        <label>Category</label>
+        <select id="category" name="category" required></select>
+
+        <label>Attachment</label>
+        <input type="file" name="attachment"/>
+
+        <button type="submit">Submit</button>
+    </form>
+
+    <h2>My Tickets</h2>
+    <table id="myTickets">
+        <thead><tr><th>ID</th><th>Subject</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        document.getElementById('ticketForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            await post('/api/submit', formData);
+            window.location.reload();
+        };
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
