@@ -697,10 +697,177 @@ public class TicketService {
 
 
 
+// Global alert handler
+window.addEventListener('load', () => {
+    const alertMsg = document.body.dataset.alert;
+    if (alertMsg) {
+        alert(alertMsg);
+        delete document.body.dataset.alert;
+    }
+});
+
+// Fetch JSON helper
+async function get(url) {
+    const res = await fetch(url);
+    return await res.json();
+}
+
+async function post(url, data) {
+    const res = await fetch(url, {
+        method: 'POST',
+        body: data
+    });
+    return await res.text();
+}
+
+// Load dropdown
+async function loadDropdown(selectId, type) {
+    const data = await get(`/api/dropdown/${type}`);
+    const select = document.getElementById(selectId);
+    select.innerHTML = '';
+    data.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.value;
+        opt.textContent = item.label;
+        select.appendChild(opt);
+    });
+}
+
+// Show alert from session
+function showAlert() {
+    fetch('/api/user').then(() => {
+        // Alert is set in session by backend, shown on page load
+    });
+}
 
 
 
 
+
+package com.example.productsupport.controller;
+
+import com.example.productsupport.dto.TicketDTO;
+import com.example.productsupport.service.TicketService;
+import jakarta.servlet.http.HttpSession;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.http.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api")
+public class ApiController {
+
+    private final TicketService service;
+    private final HttpSession session;
+
+    public ApiController(TicketService service, HttpSession session) {
+        this.service = service;
+        this.session = session;
+    }
+
+    private void alert(String msg) {
+        session.setAttribute("alert", msg);
+    }
+
+    @GetMapping("/user")
+    public String user(Authentication auth) {
+        return auth.getName();
+    }
+
+    @GetMapping("/isAdmin")
+    public boolean isAdmin(Authentication auth) {
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    @GetMapping("/recent")
+    public List<TicketDTO> recent() {
+        return service.recent();
+    }
+
+    @GetMapping("/myTickets")
+    public List<TicketDTO> myTickets(Authentication auth) {
+        return service.myTickets();
+    }
+
+    @GetMapping("/dropdown/{type}")
+    public List<java.util.Map<String, Object>> dropdown(@PathVariable String type) {
+        return service.dropdown(type);
+    }
+
+    @PostMapping("/submit")
+    public ResponseEntity<String> submit(
+            @ModelAttribute TicketDTO ticket,
+            @RequestParam(required = false) MultipartFile attachment) throws IOException {
+        service.create(ticket, attachment);
+        alert("Ticket #" + ticket.getId() + " created.");
+        return ResponseEntity.ok("success");
+    }
+
+    @GetMapping("/ticket/{id}")
+    public TicketDTO get(@PathVariable Long id) {
+        return service.byId(id);
+    }
+
+    @PostMapping("/update")
+    public ResponseEntity<String> update(@ModelAttribute TicketDTO ticket) {
+        service.update(ticket);
+        return ResponseEntity.ok("updated");
+    }
+
+    @GetMapping("/filtered")
+    public List<TicketDTO> filtered(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String priority) {
+        return service.filtered(startDate, endDate, status, priority);
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> export(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String priority) throws IOException {
+
+        List<TicketDTO> list = service.filtered(startDate, endDate, status, priority);
+        Workbook wb = new XSSFWorkbook();
+        Sheet sh = wb.createSheet("Tickets");
+        Row hdr = sh.createRow(0);
+        hdr.createCell(0).setCellValue("ID");
+        hdr.createCell(1).setCellValue("Subject");
+        hdr.createCell(2).setCellValue("Status");
+        hdr.createCell(3).setCellValue("Priority");
+        hdr.createCell(4).setCellValue("Created By");
+
+        int r = 1;
+        for (TicketDTO t : list) {
+            Row row = sh.createRow(r++);
+            row.createCell(0).setCellValue(t.getId());
+            row.createCell(1).setCellValue(t.getSubject());
+            row.createCell(2).setCellValue(t.getStatus());
+            row.createCell(3).setCellValue(t.getPriority());
+            row.createCell(4).setCellValue(t.getCreatedBy());
+        }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        wb.write(out);
+        wb.close();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=tickets.xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(out.toByteArray());
+    }
+}
 
 
 
