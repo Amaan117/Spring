@@ -1006,3 +1006,94 @@ public class SimpleSecurityConfig {
     </div>
 </body>
 </html>
+
+
+
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Reports</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+        .nav-tabs { display: flex; list-style: none; padding: 0; border-bottom: 2px solid #007bff; margin-bottom: 20px; }
+        .nav-tabs li { margin-right: 5px; }
+        .nav-tabs a { display: block; padding: 10px 15px; background: #e9ecef; text-decoration: none; color: #333; }
+        .nav-tabs a.active, .nav-tabs a:hover { background: #007bff; color: white; }
+        .filter-form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        label { font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { grid-column: span 2; background: #007bff; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background: #007bff; color: white; }
+        .export-btn { display: inline-block; margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; }
+        .export-btn:hover { background: #218838; }
+    </style>
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        window.onload = function() {
+            var msg = /*[[${alert}]]*/ null;
+            if (msg) alert(msg);
+        };
+        /*]]>*/
+    </script>
+</head>
+<body>
+    <ul class="nav-tabs">
+        <li><a href="/home">Home</a></li>
+        <li><a href="/menu">Menu</a></li>
+        <li><a class="active" href="/reports">Reports</a></li>
+        <li style="margin-left: auto;"><a href="/logout">Logout</a></li>
+    </ul>
+
+    <h2>Filter Tickets</h2>
+    <form th:action="@{/filterReports}" method="post" class="filter-form">
+        <div>
+            <label>Start Date</label>
+            <input type="date" name="startDate"/>
+        </div>
+        <div>
+            <label>End Date</label>
+            <input type="date" name="endDate"/>
+        </div>
+        <div>
+            <label>Status</label>
+            <select name="status">
+                <option value="">All</option>
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}"></option>
+            </select>
+        </div>
+        <div>
+            <label>Priority</label>
+            <select name="priority">
+                <option value="">All</option>
+                <option th:each="o : ${priorities}" th:value="${o.value}" th:text="${o.label}"></option>
+            </select>
+        </div>
+        <button type="submit">Apply Filter</button>
+    </form>
+
+    <th:block th:if="${tickets != null}">
+        <h3>Results</h3>
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Subject</th><th>Status</th><th>Priority</th><th>Created By</th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="t : ${tickets}">
+                    <td th:text="${t.id}"></td>
+                    <td th:text="${t.subject}"></td>
+                    <td th:text="${t.status}"></td>
+                    <td th:text="${t.priority}"></td>
+                    <td th:text="${t.createdBy}"></td>
+                </tr>
+            </tbody>
+        </table>
+        <a th:href="@{/exportReports(startDate=${param.startDate[0]},endDate=${param.endDate[0]},status=${param.status[0]},priority=${param.priority[0]})}"
+           class="export-btn">Export to Excel</a>
+    </th:block>
+</body>
+</html>
