@@ -359,3 +359,28 @@ public class TicketController {
 }
 
 
+
+
+
+
+
+package com.example.productsupport.dto;
+
+import lombok.Data;
+import java.time.LocalDateTime;
+
+@Data
+public class TicketDTO {
+    private Long id;
+    private String subject;
+    private String description;
+    private String priority;
+    private String category;
+    private String status;
+    private String createdBy;
+    private LocalDateTime createdDate;
+    private String assignedTo;
+    private LocalDateTime resolvedDate;
+    private LocalDateTime closedDate;
+    private byte[] attachment;
+}
