@@ -1,3 +1,7 @@
+
+
+
+
 # Spring
 Spring
 
@@ -943,3 +947,62 @@ public class SimpleSecurityConfig {
         return new InMemoryUserDetailsManager(user, admin);
     }
 }
+
+
+
+
+
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Ticket Form</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+        .container { background: white; padding: 20px; border: 1px solid #ddd; border-radius: 5px; max-width: 600px; }
+        label { display: block; margin: 15px 0 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        textarea { height: 100px; }
+        button { margin-top: 20px; background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .back-btn { background: #6c757d; margin-left: 10px; }
+        .back-btn:hover { background: #5a6268; }
+    </style>
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        window.onload = function() {
+            var msg = /*[[${alert}]]*/ null;
+            if (msg) alert(msg);
+        };
+        /*]]>*/
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2>Tracker Form – Ticket #<span th:text="${ticket.id}"></span></h2>
+        <form th:action="@{/updateTicket}" th:object="${ticket}" method="post">
+            <input type="hidden" th:field="*{id}"/>
+
+            <label>Subject</label>
+            <input th:field="*{subject}" readonly/>
+
+            <label>Description</label>
+            <textarea th:field="*{description}" readonly></textarea>
+
+            <label>Assign Engineer</label>
+            <select th:field="*{assignedTo}">
+                <option th:each="e : ${engineers}" th:value="${e.value}" th:text="${e.label}"></option>
+            </select>
+
+            <label>Status</label>
+            <select th:field="*{status}">
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}"></option>
+            </select>
+
+            <button type="submit">Update</button>
+            <a th:href="@{/home}" class="back-btn" style="padding: 10px 20px; display: inline-block; color: white; text-decoration: none;">Cancel</a>
+        </form>
+    </div>
+</body>
+</html>
