@@ -216,3 +216,146 @@ public class SimpleSecurityConfig {
         return new InMemoryUserDetailsManager(user, admin);
     }
 }
+
+
+
+
+
+
+
+package com.example.productsupport.controller;
+
+import com.example.productsupport.dto.TicketDTO;
+import com.example.productsupport.service.TicketService;
+import jakarta.servlet.http.HttpSession;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.http.*;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.List;
+
+@Controller
+public class TicketController {
+
+    private final TicketService service;
+    private final HttpSession session;
+
+    public TicketController(TicketService service, HttpSession session) {
+        this.service = service;
+        this.session = session;
+    }
+
+    private void pushAlert(Model m) {
+        String a = (String) session.getAttribute("alert");
+        if (a != null) {
+            m.addAttribute("alert", a);
+            session.removeAttribute("alert");
+        }
+    }
+
+    @GetMapping({"/", "/home"})
+    public String home(Model m) {
+        m.addAttribute("tickets", service.recent());
+        m.addAttribute("isAdmin", service.isAdmin());
+        pushAlert(m);
+        return "home";
+    }
+
+    @GetMapping("/menu")
+    public String menu(Model m) {
+        m.addAttribute("ticket", new TicketDTO());
+        m.addAttribute("priorities", service.dropdown("priority"));
+        m.addAttribute("categories", service.dropdown("category"));
+        m.addAttribute("myTickets", service.myTickets());
+        pushAlert(m);
+        return "menu";
+    }
+
+    @PostMapping("/submitTicket")
+    public String submit(@ModelAttribute TicketDTO t,
+                         @RequestParam(required = false) MultipartFile attachment) throws IOException {
+        service.create(t, attachment);
+        return "redirect:/menu";
+    }
+
+    @GetMapping("/reports")
+    public String reports(Model m) {
+        m.addAttribute("statuses", List.of("New","Assigned","In-Progress","Resolved","Closed"));
+        m.addAttribute("priorities", service.dropdown("priority"));
+        pushAlert(m);
+        return "reports";
+    }
+
+    @PostMapping("/filterReports")
+    public String filter(@RequestParam(required = false) String startDate,
+                         @RequestParam(required = false) String endDate,
+                         @RequestParam(required = false) String status,
+                         @RequestParam(required = false) String priority,
+                         Model m) {
+        m.addAttribute("tickets", service.filtered(startDate, endDate, status, priority));
+        m.addAttribute("statuses", List.of("New","Assigned","In-Progress","Resolved","Closed"));
+        m.addAttribute("priorities", service.dropdown("priority"));
+        pushAlert(m);
+        return "reports";
+    }
+
+    @GetMapping("/exportReports")
+    public ResponseEntity<byte[]> export(@RequestParam(required = false) String startDate,
+                                         @RequestParam(required = false) String endDate,
+                                         @RequestParam(required = false) String status,
+                                         @RequestParam(required = false) String priority) throws IOException {
+        List<TicketDTO> list = service.filtered(startDate, endDate, status, priority);
+        Workbook wb = new XSSFWorkbook();
+        Sheet sh = wb.createSheet("Tickets");
+        Row hdr = sh.createRow(0);
+        hdr.createCell(0).setCellValue("ID");
+        hdr.createCell(1).setCellValue("Subject");
+        hdr.createCell(2).setCellValue("Status");
+        hdr.createCell(3).setCellValue("Priority");
+        hdr.createCell(4).setCellValue("Created By");
+
+        int r = 1;
+        for (TicketDTO t : list) {
+            Row row = sh.createRow(r++);
+            row.createCell(0).setCellValue(t.getId());
+            row.createCell(1).setCellValue(t.getSubject());
+            row.createCell(2).setCellValue(t.getStatus());
+            row.createCell(3).setCellValue(t.getPriority());
+            row.createCell(4).setCellValue(t.getCreatedBy());
+        }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        wb.write(out);
+        wb.close();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=tickets.xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(out.toByteArray());
+    }
+
+    @GetMapping("/ticket/{id}")
+    public String form(@PathVariable Long id, Model m) {
+        if (!service.isAdmin()) return "redirect:/home";
+        TicketDTO t = service.byId(id);
+        m.addAttribute("ticket", t);
+        m.addAttribute("engineers", service.dropdown("engineer"));
+        m.addAttribute("statuses", List.of("Assigned","In-Progress","Resolved","Closed"));
+        pushAlert(m);
+        return "ticketForm";
+    }
+
+    @PostMapping("/updateTicket")
+    public String update(@ModelAttribute TicketDTO t) {
+        if (service.isAdmin()) service.update(t);
+        return "redirect:/home";
+    }
+}
+
+
