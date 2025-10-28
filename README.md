@@ -871,3 +871,75 @@ public class ApiController {
 
 
 
+package com.example.productsupport.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+
+@Controller
+public class PageController {
+
+    @GetMapping({"/", "/home.html"})
+    public String home() { return "forward:/static/home.html"; }
+
+    @GetMapping("/menu.html")
+    public String menu() { return "forward:/static/menu.html"; }
+
+    @GetMapping("/reports.html")
+    public String reports() { return "forward:/static/reports.html"; }
+
+    @GetMapping("/ticketForm.html")
+    public String ticketForm() { return "forward:/static/ticketForm.html"; }
+}
+
+
+
+
+package com.example.productsupport.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class SimpleSecurityConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/h2-console/**", "/api/**", "/static/**", "/js/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .formLogin(form -> form
+                .loginPage("/login")
+                .defaultSuccessUrl("/home.html", true)
+                .permitAll()
+            )
+            .logout(logout -> logout
+                .logoutSuccessUrl("/login")
+                .permitAll()
+            )
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
+            .headers(headers -> headers.frameOptions().sameOrigin());
+        return http.build();
+    }
+
+    @Bean
+    public UserDetailsService users() {
+        UserDetails user = User.withUsername("user")
+                .password("{noop}user")
+                .roles("USER")
+                .build();
+        UserDetails admin = User.withUsername("admin")
+                .password("{noop}admin")
+                .roles("ADMIN")
+                .build();
+        return new InMemoryUserDetailsManager(user, admin);
+    }
+}
