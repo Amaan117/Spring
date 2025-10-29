@@ -1,4 +1,31 @@
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 
+public long createTicket(Ticket t) {
+    String sql = "INSERT INTO tickets (incident_type, team_name, detect_category, description, incident_severity, application_name, incident_raised_date, status, created_by) " +
+                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    KeyHolder keyHolder = new GeneratedKeyHolder();
+
+    jdbc.update(connection -> {
+        PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+        ps.setString(1, t.incidentType);
+        ps.setString(2, t.teamName);
+        ps.setString(3, t.detectCategory);
+        ps.setString(4, t.description);
+        ps.setString(5, t.incidentSeverity);
+        ps.setString(6, t.applicationName);
+        ps.setTimestamp(7, Timestamp.valueOf(t.incidentRaisedDate));
+        ps.setString(8, t.status);
+        ps.setString(9, t.createdBy);
+        return ps;
+    }, keyHolder);
+
+    Number id = keyHolder.getKey();
+    return (id != null) ? id.longValue() : -1;
+}
 
 
 
